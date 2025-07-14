@@ -7,9 +7,9 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redis.asyncio import Redis
 
-from schemas import ProxyInfo
+from utils.schemas import ProxyInfo
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def get_model_config(env_dir: str = f"{BASE_DIR}/.env"):

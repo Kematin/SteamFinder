@@ -40,7 +40,7 @@ class SearchSettings:
                 data = json.load(f)
         except FileNotFoundError:
             default_settings = self._get_default_settings()
-            self._save_settings_to_file(default_settings, file_path)
+            self._save_settings_to_file(default_settings, filename)
             return default_settings
 
         return _SearchSettingsData(
@@ -76,9 +76,6 @@ class SearchSettings:
         filename: str = CONFIG.path.search_settings_filename,
     ):
         file_path = f"{CONFIG.path.data_directory}/{filename}.json"
-        print(file_path)
-        print(CONFIG.path.data_directory)
-        print(filename)
 
         data = {
             "overprice_settings": {

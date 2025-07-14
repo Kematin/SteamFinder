@@ -5,7 +5,7 @@ from loguru import logger
 from redis.asyncio import Redis
 
 from config import CONFIG, configure_loguru
-from utils import normalize_name
+from utils.utils import normalize_name
 
 
 async def receive_sticker_price(name: str, redis: Redis) -> Optional[float]:

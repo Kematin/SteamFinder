@@ -5,10 +5,10 @@ from typing import List
 import aiofiles
 from loguru import logger
 
-from api import fetch_data
 from config import CONFIG, configure_loguru
-from schemas import StickerInfo
 from utils import normalize_name
+from utils.api import fetch_data
+from utils.schemas import StickerInfo
 
 
 async def _write_json(filename: str, items: List[StickerInfo]) -> None:

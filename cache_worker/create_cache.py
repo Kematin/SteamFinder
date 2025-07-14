@@ -7,8 +7,8 @@ from loguru import logger
 from redis.asyncio import Redis
 
 from config import CONFIG, configure_loguru
-from schemas import StickerInfo
-from utils import normalize_name
+from utils.schemas import StickerInfo
+from utils.utils import normalize_name
 
 
 async def _read_file(filename: str) -> List[StickerInfo]:

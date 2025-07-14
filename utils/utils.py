@@ -8,8 +8,9 @@ import aiofiles
 from loguru import logger
 
 from config import CONFIG
-from exceptions import RequestError
-from schemas import ProxyInfo
+
+from .exceptions import RequestError
+from .schemas import ProxyInfo
 
 
 def api_sleep(sleep: int):

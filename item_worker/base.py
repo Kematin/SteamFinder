@@ -3,9 +3,9 @@ from typing import List
 
 from loguru import logger
 
-from api import fetch_data
 from config import CONFIG
-from schemas import ItemBase
+from utils.api import fetch_data
+from utils.schemas import ItemBase
 
 BASE_URL = "https://steamcommunity.com/market/listings/730/{name}/render/?query=&start={start}&count=10&country=NL&language=english&currency=1"
 

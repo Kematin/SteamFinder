@@ -1,6 +1,6 @@
 from typing import List
 
-from schemas import ProxyInfo
+from utils.schemas import ProxyInfo
 
 from .settings import CONFIG
 

@@ -4,8 +4,9 @@ import aiohttp
 from aiohttp_socks import ProxyConnector, ProxyError
 
 from config import CONFIG
-from exceptions import RequestError
-from utils import api_sleep, get_proxy
+
+from .exceptions import RequestError
+from .utils import api_sleep, get_proxy
 
 
 @api_sleep(sleep=CONFIG.sleep.global_sleep)

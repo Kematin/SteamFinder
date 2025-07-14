@@ -6,8 +6,8 @@ from loguru import logger
 
 from cache_worker.receive_cache import receive_sticker_price
 from config import CONFIG, SEARCH, configure_loguru
-from schemas import ItemBase, StickerInfo, StickerItemInfo
-from utils import normalize_name
+from utils.schemas import ItemBase, StickerInfo, StickerItemInfo
+from utils.utils import normalize_name
 
 from .base import (
     get_average_price,
