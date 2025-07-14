@@ -1,0 +1,6 @@
+data
+config.js
+__pycache__
+venv
+stickers
+.env
