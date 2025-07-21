@@ -3,7 +3,7 @@ from typing import AsyncIterator, List, Optional
 
 from loguru import logger
 
-from config import CONFIG, SEARCH, configure_loguru
+from config import CONFIG, configure_loguru
 from utils.api import fetch_inner_data
 from utils.exceptions import RequestError
 from utils.schemas import FloatItemInfo, ItemBase
@@ -28,30 +28,6 @@ def _check_float(float_value: float) -> bool:
     if float_value >= 0.99:
         return True
     return False
-
-
-def _pretty_message_item(item: FloatItemInfo, start: int):
-    url = f"https://steamcommunity.com/market/listings/730/{item.name}"
-    url = url.replace(" ", "%20")
-
-    message = (
-        "Page: {page}\nURL:\n{url}"
-        + "\n\nItem: {name}\nAverage Price: <b>{average_price}$</b>\nPrice: <b>{price}$</b>"
-        + "\n\nFloat Overprice: {overprice}$\nFloat Overprice %: {overprice_percent}%"
-        + "\n\nFloat: <b>{float_value}</b>\nPattern: <b>{pattern}</b>"
-    )
-
-    return message.format(
-        page=(start % 10) + 1,
-        url=url,
-        float_value=item.float_value,
-        pattern=item.pattern,
-        overprice=round(item.price - item.average_price, 2),
-        overprice_percent=item.overprice,
-        name=item.name,
-        price=item.price,
-        average_price=round(item.average_price, 2),
-    )
 
 
 async def _get_items_info(
@@ -96,10 +72,9 @@ async def find_success_item(
     *,
     start: int,
     average_price: int,
-    max_overpice_percent: int = SEARCH.settings.overprice.max_overprice_float,
 ) -> AsyncIterator[Optional[FloatItemInfo]]:
     raw_items = await get_raw_items_data(item_name, start=start)
-    base_items = await get_base_items(raw_items)
+    base_items = await get_base_items(raw_items, start=start)
     items = await _get_items_info(
         base_items, raw_items=raw_items, average_price=average_price
     )
@@ -112,7 +87,7 @@ async def find_success_item(
 
     for item in items:
         logger.debug(f"item {item}")
-        if item.overprice <= max_overpice_percent and _check_float(item.float_value):
+        if _check_float(item.float_value):
             yield item
         if item.price > max_price:
             yield None
@@ -127,24 +102,22 @@ async def find_items(item_name: str, max_page: int = 3) -> AsyncIterator[str]:
     start = 0
     average_price = await get_average_price(item_name)
     while start <= max_page * 10:
-        flag = False
+        is_finished = False
 
         async for item in find_success_item(
             item_name, start=start, average_price=average_price
         ):
             if item is None:
-                flag = True
+                is_finished = True
                 break
 
             if item == 1:
                 break
 
-            logger.debug(f"FIND {item}")
-            message = _pretty_message_item(item, start)
-            logger.info(message)
-            yield message
+            logger.info(item.message)
+            yield item
 
-        if flag:
+        if is_finished:
             break
 
         start += 10

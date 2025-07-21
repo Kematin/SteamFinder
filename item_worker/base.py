@@ -61,7 +61,7 @@ async def get_raw_items_data(item: str, start: int = 0) -> List[dict]:
     return data
 
 
-async def get_base_items(raw_items: dict) -> List[ItemBase]:
+async def get_base_items(raw_items: dict, *, start: int = 0) -> List[ItemBase]:
     items = []
 
     try:
@@ -81,7 +81,9 @@ async def get_base_items(raw_items: dict) -> List[ItemBase]:
             logger.warning(f"Key error in listing: {listing}")
             continue
 
-        new_item = ItemBase(listing_id=listing_id, name=name, price=price)
+        new_item = ItemBase(
+            listing_id=listing_id, name=name, price=price, page=start // 10 + 1
+        )
 
         items.append(new_item)
 

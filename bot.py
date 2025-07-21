@@ -8,10 +8,11 @@ from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from loguru import logger
 
-from config import CONFIG, configure_loguru
+from config import CONFIG, SEARCH, configure_loguru
 from item_worker.base import get_normal_items
 from item_worker.float import find_items as float_search_items
 from item_worker.stickers import find_items as sticker_search_items
+from utils.schemas import StickerItemInfo
 
 search_status = False
 
@@ -32,6 +33,18 @@ bot = Bot(
 )
 
 
+def filter_sticker_item(item: StickerItemInfo):
+    if item.overprice > SEARCH.overprice.max_overprice_sticker:
+        return False
+    if item.price > SEARCH.sticker.max_item_price:
+        return False
+    if item.price < SEARCH.sticker.min_item_price:
+        return False
+    if item.total_stickers_price < SEARCH.sticker.min_total_sticker_price:
+        return False
+    return True
+
+
 async def start_action(message: types.Message, type: str):
     count = 0
     func = {"sticker": sticker_search_items, "float": float_search_items}[type]
@@ -44,8 +57,8 @@ async def start_action(message: types.Message, type: str):
     try:
         while search_status:
             count += 1
-            logger.info(f"Search items, repeat: {count}")
             item_names = get_normal_items()
+            logger.info(f"Search {len(item_names)} items, repeat: {count}")
             tasks = []
 
             for item_name in item_names:
@@ -58,19 +71,20 @@ async def start_action(message: types.Message, type: str):
                 await asyncio.sleep(CONFIG.sleep.task_sleep)
 
             await asyncio.gather(*tasks)
-            await asyncio.sleep(CONFIG.sleep.task_sleep)
+            await asyncio.sleep(CONFIG.sleep.task_sleep * 10)
 
     except asyncio.CancelledError:
         pass
 
 
 async def process_item(func, item_name, message):
-    async for item_id, msg in func(item_name):
-        logger.info(f"Find {item_id}, set {SENDED_ITEMS}")
-        if item_id in SENDED_ITEMS:
-            continue
-        SENDED_ITEMS.add(item_id)
-        await message.answer(msg)
+    async for item in func(item_name):
+        if filter_sticker_item(item):
+            item_id = item.listing_id
+            if item_id in SENDED_ITEMS:
+                continue
+            SENDED_ITEMS.add(item_id)
+            await message.answer(item.message)
 
 
 @dp.message(lambda message: message.text == "▶️ Стикеры")

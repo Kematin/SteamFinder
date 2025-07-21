@@ -13,8 +13,8 @@ class _OverpriceSettings:
 
 @dataclass
 class _StickerSettings:
-    min_item_sticker_price: int
-    max_item_sticker_price: int
+    min_item_price: int
+    max_item_price: int
     min_total_sticker_price: int
     search_sticker_qualities: List[str]
 
@@ -26,8 +26,12 @@ class _SearchSettingsData:
 
 
 class SearchSettings:
+    __slots__ = ["overprice", "sticker"]
+
     def __init__(self):
-        self.settings = self.load_search_settings()
+        settings = self.load_search_settings()
+        self.overprice = settings.overprice
+        self.sticker = settings.sticker
 
     def load_search_settings(
         self,
@@ -51,10 +55,10 @@ class SearchSettings:
                 max_overprice_float=data["overprice_settings"]["max_overprice_float"],
             ),
             sticker=_StickerSettings(
-                min_item_sticker_price=data["sticker_search_settings"][
+                min_item_price=data["sticker_search_settings"][
                     "min_item_sticker_price"
                 ],
-                max_item_sticker_price=data["sticker_search_settings"][
+                max_item_price=data["sticker_search_settings"][
                     "max_item_sticker_price"
                 ],
                 min_total_sticker_price=data["sticker_search_settings"][
@@ -67,7 +71,8 @@ class SearchSettings:
         )
 
     def change_search_settings(self, new_settings: _SearchSettingsData):
-        self.settings = new_settings
+        self.overprice = new_settings.overprice
+        self.sticker = new_settings.sticker
         self._save_settings_to_file(new_settings)
 
     def _save_settings_to_file(
@@ -83,8 +88,8 @@ class SearchSettings:
                 "max_overprice_float": settings.overprice.max_overprice_float,
             },
             "sticker_search_settings": {
-                "min_item_sticker_price": settings.sticker.min_item_sticker_price,
-                "max_item_sticker_price": settings.sticker.max_item_sticker_price,
+                "min_item_sticker_price": settings.sticker.min_item_price,
+                "max_item_sticker_price": settings.sticker.max_item_price,
                 "min_total_sticker_price": settings.sticker.min_total_sticker_price,
                 "search_sticker_qualities": settings.sticker.search_sticker_qualities,
             },
@@ -99,8 +104,8 @@ class SearchSettings:
                 max_overprice_sticker=6, max_overprice_float=15
             ),
             sticker=_StickerSettings(
-                min_item_sticker_price=0,
-                max_item_sticker_price=10000,
+                min_item_price=0,
+                max_item_price=10000,
                 min_total_sticker_price=5,
                 search_sticker_qualities=[
                     "Battle-Scarred",

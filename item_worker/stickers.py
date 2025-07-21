@@ -1,11 +1,11 @@
 import asyncio
-from typing import AsyncIterator, List, Optional, Tuple
+from typing import AsyncIterator, List, Optional
 
 from bs4 import BeautifulSoup
 from loguru import logger
 
 from cache_worker.receive_cache import receive_sticker_price
-from config import CONFIG, SEARCH, configure_loguru
+from config import CONFIG, configure_loguru
 from utils.schemas import ItemBase, StickerInfo, StickerItemInfo
 from utils.utils import normalize_name
 
@@ -39,7 +39,7 @@ async def _get_sticker_info_from_raw(raw_data: dict) -> Optional[List[StickerInf
 
 
 async def _get_items_info(
-    base_items: List[ItemBase], raw_items: dict, average_price: int
+    base_items: List[ItemBase], *, raw_items: dict, average_price: int
 ) -> List[StickerItemInfo]:
     items = []
 
@@ -60,6 +60,7 @@ async def _get_items_info(
         new_item = StickerItemInfo(
             listing_id=item.listing_id,
             name=item.name,
+            page=item.page,
             price=item.price,
             average_price=average_price,
             sticker_info=stickers,
@@ -71,43 +72,17 @@ async def _get_items_info(
     return items
 
 
-def _pretty_message_item(item: StickerItemInfo, start: int):
-    url = f"https://steamcommunity.com/market/listings/730/{item.name}"
-    url = url.replace(" ", "%20")
-
-    message = (
-        "Page: {page}\nURL:\n{url}\n\nItem: {name}\nAverage Price: <b>{average_price}$</b>\nPrice: <b>{price}$</b>"
-        + "\n\nSticker overprice <b>{overprice}$</b>\nSticker overpice %: <b>{overprice_percent}%</b>\nStickers total price: <b>{stickers_price}$</b>"
-        + "\n\nStickers {stickers_count}: {sticker_info}"
-    )
-    sticker_info = ""
-    for sticker in item.sticker_info:
-        sticker_info += f"\n{sticker['name']}, Price: {round(sticker['price'], 2)}$"
-
-    return message.format(
-        page=(start // 10) + 1,
-        url=url,
-        name=item.name,
-        price=item.price,
-        average_price=round(item.average_price, 2),
-        overprice=round(item.price - item.average_price, 2),
-        overprice_percent=item.overprice,
-        stickers_count=len(item.sticker_info),
-        stickers_price=round(item.total_stickers_price, 2),
-        sticker_info=sticker_info,
-    )
-
-
 async def find_success_item(
     item_name: str,
     *,
     start: int,
     average_price: int,
-    max_overpice_percent: int = SEARCH.settings.overprice.max_overprice_sticker,
 ) -> AsyncIterator[Optional[StickerItemInfo]]:
     raw_items = await get_raw_items_data(item_name, start=start)
-    base_items = await get_base_items(raw_items)
-    items = await _get_items_info(base_items, raw_items, average_price)
+    base_items = await get_base_items(raw_items, start=start)
+    items = await _get_items_info(
+        base_items, raw_items=raw_items, average_price=average_price
+    )
 
     if not items:
         yield None
@@ -117,39 +92,38 @@ async def find_success_item(
     logger.debug(f"Receive items {item_name} on page {(start // 10) + 1}")
 
     for item in items:
-        if item.overprice <= max_overpice_percent:
-            yield item
         if item.price > max_price:
             yield None
+        if item.sticker_info:
+            yield item
 
     yield 1
 
 
 async def find_items(
     item_name: str, max_page: int = 3
-) -> AsyncIterator[Tuple[str, str]]:
+) -> AsyncIterator[StickerItemInfo]:
     logger.info(
         f"Search item {item_name.replace('%20', ' ').replace('%E2%84%A2', 'TM')}"
     )
     start = 0
     average_price = await get_average_price(item_name)
     while start <= max_page * 10:
-        flag = False
+        is_finished = False
 
         async for item in find_success_item(
             item_name, start=start, average_price=average_price
         ):
             if item is None:
-                flag = True
+                is_finished = True
                 break
             if item == 1:
                 break
 
-            message = _pretty_message_item(item, start)
-            logger.info(message)
-            yield (item.listing_id, message)
+            logger.info(item.message)
+            yield item
 
-        if flag:
+        if is_finished:
             break
 
         start += 10

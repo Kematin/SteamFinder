@@ -6,9 +6,9 @@ import aiofiles
 from loguru import logger
 
 from config import CONFIG, configure_loguru
-from utils import normalize_name
 from utils.api import fetch_data
 from utils.schemas import StickerInfo
+from utils.utils import normalize_name
 
 
 async def _write_json(filename: str, items: List[StickerInfo]) -> None:
@@ -52,6 +52,10 @@ async def _get_sticker_info(sticker: str, start: int) -> List[StickerInfo]:
     for item_data in data:
         name = item_data["name"]
         price = (item_data["sell_price"] / 100) * 0.9
+
+        # TODO find stickers without steam sells
+        if price == 0:
+            price = 1000
 
         if "Sticker" not in name:
             continue

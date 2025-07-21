@@ -38,7 +38,7 @@ class RedisSettings(BaseSettings):
 
 class SleepSettings(BaseSettings):
     global_sleep: float = Field(default=15, alias="GLOBAL_SLEEP_TIME")
-    task_sleep: float = Field(default=0.5, alias="TASK_SLEEP_TIME")
+    task_sleep: float = Field(default=1.5, alias="TASK_SLEEP_TIME")
     request_sleep: float = Field(default=0.5, alias="REQUEST_SLEEP_TIME")
 
     model_config = get_model_config()
