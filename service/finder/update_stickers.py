@@ -5,7 +5,7 @@ from typing import List
 import aiofiles
 from loguru import logger
 
-from config import CONFIG, configure_loguru
+from config import CONFIG
 from utils.api import fetch_data
 from utils.schemas import StickerInfo
 from utils.utils import normalize_name
@@ -97,9 +97,3 @@ async def main(stickers: List[str] = CONFIG.sticker.items):
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         raise
-
-
-if __name__ == "__main__":
-    configure_loguru(logger)
-    asyncio.run(main())
-    logger.warning("END.")

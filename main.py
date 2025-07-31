@@ -2,11 +2,11 @@ import asyncio
 
 from loguru import logger
 
-from cache_worker.create_cache import main as update_cache
 from config import configure_loguru
-from item_worker.float import main as float_search_items
-from item_worker.stickers import main as sticker_search_items
-from item_worker.update_stickers import main as sticker_update
+from service.cache.create_cache import main as update_cache
+from service.finder.float import main as float_search_items
+from service.finder.stickers import main as sticker_search_items
+from service.finder.update_stickers import main as sticker_update
 
 
 async def select_function():

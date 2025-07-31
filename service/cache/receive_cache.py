@@ -1,10 +1,9 @@
-import asyncio
 from typing import Optional
 
 from loguru import logger
 from redis.asyncio import Redis
 
-from config import CONFIG, configure_loguru
+from config import CONFIG
 from utils.utils import normalize_name
 
 
@@ -37,9 +36,3 @@ async def main():
 
     finally:
         await redis.aclose()
-
-
-if __name__ == "__main__":
-    configure_loguru(logger)
-    asyncio.run(main())
-    logger.warning("END.")

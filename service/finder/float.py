@@ -1,13 +1,12 @@
 import asyncio
 from typing import AsyncIterator, List, Optional
 
-from bs4 import BeautifulSoup
 from loguru import logger
 
-from cache_worker.receive_cache import receive_sticker_price
-from config import CONFIG, configure_loguru
-from utils.schemas import ItemBase, StickerInfo, StickerItemInfo
-from utils.utils import normalize_name
+from config import CONFIG
+from utils.api import fetch_inner_data
+from utils.exceptions import RequestError
+from utils.schemas import FloatItemInfo, ItemBase
 
 from .base import (
     get_average_price,
@@ -17,54 +16,50 @@ from .base import (
 )
 
 
-async def _get_sticker_info_from_raw(raw_data: dict) -> Optional[List[StickerInfo]]:
-    if raw_data["name"] != "sticker_info":
-        return None
-
-    stickers = []
-
-    raw_html = raw_data["value"]
-    soup = BeautifulSoup(raw_html, "html.parser")
-    imgs = soup.find_all("img")
-    for img in imgs:
-        sticker_name = img.get("title")
-        price = await receive_sticker_price(
-            normalize_name(sticker_name), CONFIG.redis.client
-        )
-        if price:
-            new_sticker: StickerInfo = {"name": sticker_name, "price": price}
-            stickers.append(new_sticker)
-
-    return stickers if stickers else None
+def _check_float(float_value: float) -> bool:
+    if float_value < 0.01:
+        return True
+    if 0.07 <= float_value <= 0.08:
+        return True
+    if 0.15 <= float_value <= 0.18:
+        return True
+    if 0.38 <= float_value <= 0.39:
+        return True
+    if float_value >= 0.99:
+        return True
+    return False
 
 
 async def _get_items_info(
     base_items: List[ItemBase], *, raw_items: dict, average_price: int
-) -> List[StickerItemInfo]:
+) -> List[FloatItemInfo]:
     items = []
 
     for item in base_items:
-        assets: dict = raw_items["assets"]["730"]["2"]
         listing = raw_items["listinginfo"][item.listing_id]
 
         asset_id = listing["asset"]["id"]
-        asset = assets[asset_id]
+        game_link = listing["asset"]["market_actions"][0]["link"]
+        game_link = game_link.replace("%listingid%", item.listing_id)
+        game_link = game_link.replace("%assetid%", asset_id)
 
-        raw_stickers_data = asset["descriptions"][-1]
-        stickers = await _get_sticker_info_from_raw(raw_stickers_data)
-        total_stickers_price = 0
-        if stickers:
-            for sticker in stickers:
-                total_stickers_price += sticker["price"]
+        url = f"{CONFIG.service.float_service_url}/?url={game_link}"
+        async with CONFIG.global_lock:
+            try:
+                response = await fetch_inner_data(url)
+            except RequestError:
+                logger.warning(f"bad float request, sleep 10 secs: {url}")
+                await asyncio.sleep(10)
+                continue
+        data = response["iteminfo"]
 
-        new_item = StickerItemInfo(
+        new_item = FloatItemInfo(
             listing_id=item.listing_id,
             name=item.name,
-            page=item.page,
             price=item.price,
             average_price=average_price,
-            sticker_info=stickers,
-            total_stickers_price=total_stickers_price,
+            float_value=data["floatvalue"],
+            pattern=data["paintseed"],
         )
 
         items.append(new_item)
@@ -77,7 +72,7 @@ async def find_success_item(
     *,
     start: int,
     average_price: int,
-) -> AsyncIterator[Optional[StickerItemInfo]]:
+) -> AsyncIterator[Optional[FloatItemInfo]]:
     raw_items = await get_raw_items_data(item_name, start=start)
     base_items = await get_base_items(raw_items, start=start)
     items = await _get_items_info(
@@ -89,20 +84,18 @@ async def find_success_item(
 
     items = sorted(items, key=lambda item: item.price)
     max_price = average_price * 1.5
-    logger.debug(f"Receive items {item_name} on page {(start // 10) + 1}")
 
     for item in items:
+        logger.debug(f"item {item}")
+        if _check_float(item.float_value):
+            yield item
         if item.price > max_price:
             yield None
-        if item.sticker_info:
-            yield item
 
     yield 1
 
 
-async def find_items(
-    item_name: str, max_page: int = 3
-) -> AsyncIterator[StickerItemInfo]:
+async def find_items(item_name: str, max_page: int = 3) -> AsyncIterator[str]:
     logger.info(
         f"Search item {item_name.replace('%20', ' ').replace('%E2%84%A2', 'TM')}"
     )
@@ -117,6 +110,7 @@ async def find_items(
             if item is None:
                 is_finished = True
                 break
+
             if item == 1:
                 break
 
@@ -139,18 +133,10 @@ async def main():
 
             await asyncio.sleep(1.5)
 
-        await asyncio.gather(*tasks, return_exceptions=False)
+        await asyncio.gather(*tasks)
 
     except asyncio.CancelledError:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         raise
-
-
-if __name__ == "__main__":
-    try:
-        configure_loguru(logger)
-        asyncio.run(main())
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        logger.warning("END.")

@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redis.asyncio import Redis
 
@@ -17,6 +17,16 @@ def get_model_config(env_dir: str = f"{BASE_DIR}/.env"):
         env_file=env_dir, env_file_encoding="utf-8", extra="ignore"
     )
     return config
+
+
+class ApiSettings(BaseSettings):
+    host: str = Field(alias="API_HOST", default="localhost")
+    port: int = Field(alias="API_PORT", default=8888)
+    secret: SecretStr = Field(alias="SECRET_KEY")
+
+    origins: List[str] = Field(alias="API_ORIGINS")
+
+    model_config = get_model_config()
 
 
 class BotSettings(BaseSettings):
@@ -100,6 +110,7 @@ class Config(BaseSettings):
     _path: PathSettings = None
     _service: ServiceSettings = None
     _sticker: StickerSettings = None
+    _api: ApiSettings = None
 
     global_lock: Lock = Field(default_factory=Lock)
     proxy_list: List[ProxyInfo] = Field(default_factory=list)
@@ -143,6 +154,12 @@ class Config(BaseSettings):
         if self._sticker is None:
             self._sticker = StickerSettings()
         return self._sticker
+
+    @property
+    def api(self) -> ApiSettings:
+        if self._api is None:
+            self._api = ApiSettings()
+        return self._api
 
 
 @lru_cache()
